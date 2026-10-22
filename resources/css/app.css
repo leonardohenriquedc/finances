@@ -1,0 +1,68 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+    --color-canvas: #f8fafc;
+    --color-brand-50: #eff6ff;
+    --color-brand-100: #dbeafe;
+    --color-brand-200: #bfdbfe;
+    --color-brand-300: #93c5fd;
+    --color-brand-400: #60a5fa;
+    --color-brand-500: #3b82f6;
+    --color-brand-600: #2563eb;
+    --color-brand-700: #1d4ed8;
+    --color-brand-800: #1e40af;
+    --color-brand-900: #1e3a8a;
+    --color-brand-950: #172554;
+}
+
+@layer base {
+    html { color-scheme: light; }
+    body { @apply m-0 font-sans antialiased; }
+    button, a, input, select, summary { -webkit-tap-highlight-color: transparent; }
+    button:not(:disabled), summary, select { cursor: pointer; }
+    button:disabled { @apply cursor-not-allowed opacity-50; }
+    :focus-visible { @apply outline-2 outline-offset-4 outline-brand-600; }
+    input, select { @apply w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-normal text-slate-900 shadow-xs transition; }
+    input:focus, select:focus { @apply border-brand-600 outline-2 outline-offset-1 outline-brand-100; }
+    input[aria-invalid='true'], select[aria-invalid='true'] { @apply border-rose-500; }
+    input:disabled, select:disabled { @apply bg-slate-100 text-slate-500; }
+    input::placeholder { @apply text-slate-400; }
+    dialog::backdrop { background: rgb(15 23 42 / 50%); backdrop-filter: blur(3px); }
+}
+
+@layer components {
+    .btn-primary { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-brand-600 bg-brand-600 px-4 py-2.5 text-sm font-medium text-white shadow-xs transition hover:bg-brand-700; }
+    .btn-secondary { @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 shadow-xs transition hover:border-slate-300 hover:bg-slate-50; }
+    .btn-quiet { @apply inline-flex min-h-10 items-center justify-center rounded-lg px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-100; }
+    .icon-button { @apply inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900; }
+    .table-action { @apply rounded-md px-2 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100; }
+    .field { @apply flex min-w-0 flex-col gap-2 text-xs font-medium text-slate-600; }
+    .panel { @apply rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs sm:p-6; }
+    .eyebrow { @apply text-[10px] font-semibold tracking-[0.16em] text-slate-400; }
+    .section-heading { @apply mb-5 flex flex-wrap items-center justify-between gap-3; }
+    .section-heading h2 { @apply text-base font-semibold tracking-tight text-slate-800; }
+    .section-heading p { @apply mt-1 text-xs leading-relaxed text-slate-500; }
+    .badge { @apply inline-flex w-fit items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[10px] font-medium; }
+    .brand-mark { @apply inline-flex size-9 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-2xl text-white; }
+    .sidebar { @apply flex flex-col border-b border-slate-200 bg-white px-5 py-5 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:w-65 lg:border-r lg:border-b-0 lg:px-6 lg:py-8; }
+    .nav-item { @apply flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 lg:flex-none lg:justify-start lg:gap-3 lg:px-4 lg:py-3 lg:text-sm; }
+    .nav-active { @apply bg-brand-50 text-brand-800 hover:bg-brand-50; }
+    .metric-card { @apply relative min-w-0 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xs; }
+    .metric-icon { @apply absolute top-4 right-4 flex size-8 items-center justify-center rounded-lg text-lg; }
+    .metric-label { @apply pr-9 text-xs font-medium text-slate-500; }
+    .metric-value { @apply mt-5 block text-[clamp(1.25rem,2vw,1.75rem)] leading-tight font-semibold tracking-tight tabular-nums; overflow-wrap: anywhere; }
+    .metric-help { @apply mt-3 text-[11px] text-slate-500; }
+    .chart-empty { @apply flex min-h-52 items-center justify-center text-center text-sm text-slate-400; }
+    .chart-target { cursor: pointer; }
+    .chart-target:focus-visible { outline: 2px solid var(--color-brand-600); outline-offset: 2px; }
+    .modal { @apply fixed m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto rounded-2xl border-0 bg-white p-0 text-slate-800 shadow-2xl; }
+    .loading-dot { @apply size-3 rounded-full bg-brand-600 motion-safe:animate-pulse; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

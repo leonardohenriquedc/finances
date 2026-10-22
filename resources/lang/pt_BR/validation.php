@@ -1,0 +1,32 @@
+<?php
+
+return [
+    'required' => 'O campo :attribute é obrigatório.',
+    'required_if' => 'O campo :attribute é obrigatório para a opção selecionada.',
+    'string' => 'O campo :attribute deve ser um texto.',
+    'email' => 'Informe um e-mail válido.',
+    'unique' => 'O valor informado para :attribute já está cadastrado.',
+    'confirmed' => 'A confirmação de :attribute não confere.',
+    'numeric' => 'O campo :attribute deve ser um número.',
+    'integer' => 'O campo :attribute deve ser um número inteiro.',
+    'in' => 'A opção selecionada para :attribute é inválida.',
+    'regex' => 'O formato de :attribute é inválido. Verifique o limite e as casas decimais.',
+    'date_format' => 'Informe :attribute como uma data válida no formato AAAA-MM-DD.',
+    'before_or_equal' => 'O campo :attribute não pode ser posterior a :date.',
+    'after_or_equal' => 'O campo :attribute não pode ser anterior a :date.',
+    'min' => ['numeric' => 'O campo :attribute deve ser no mínimo :min.', 'string' => 'O campo :attribute deve ter pelo menos :min caracteres.'],
+    'max' => ['numeric' => 'O campo :attribute deve ser no máximo :max.', 'string' => 'O campo :attribute deve ter no máximo :max caracteres.'],
+    'between' => ['numeric' => 'O campo :attribute deve estar entre :min e :max.'],
+    'attributes' => [
+        'name' => 'nome', 'email' => 'e-mail', 'password' => 'senha', 'description' => 'descrição',
+        'category' => 'categoria', 'direction' => 'direção', 'kind' => 'tipo de lançamento', 'amount' => 'valor',
+        'amount_mode' => 'forma do valor', 'installment_count' => 'quantidade de parcelas', 'frequency' => 'frequência',
+        'interest_type' => 'tipo de juros', 'interest_rate' => 'taxa de juros', 'interest_period' => 'período dos juros',
+        'competence_date' => 'competência', 'first_due_date' => 'primeiro vencimento', 'due_date' => 'vencimento',
+        'end_date' => 'data final', 'occurrence_limit' => 'limite de ocorrências', 'scope' => 'abrangência',
+        'occurrence_id' => 'ocorrência de referência', 'paid_at' => 'data da baixa', 'paid_amount' => 'valor realizado',
+        'month' => 'mês', 'year' => 'ano', 'from' => 'data inicial', 'to' => 'data final', 'status' => 'situação',
+        'text' => 'texto', 'sort' => 'ordenação', 'order' => 'direção da ordenação', 'page' => 'página',
+        'per_page' => 'resultados por página', 'action' => 'ação',
+    ],
+];

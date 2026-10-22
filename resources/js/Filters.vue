@@ -1,0 +1,43 @@
+<script setup lang="ts">
+import { reactive, watch } from 'vue';
+import type { Filters } from './types';
+const props = defineProps<{ filters: Filters; categories: string[]; busy: boolean }>();
+const emit = defineEmits<{ apply: [filters: Filters]; reset: [] }>();
+const draft = reactive({ ...props.filters });
+watch(() => props.filters, value => Object.assign(draft, value), { deep: true });
+const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+</script>
+<template>
+    <form class="panel space-y-4" aria-label="Filtros combinados dos lançamentos e indicadores" @submit.prevent="emit('apply', { ...draft, page: '1' })">
+        <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="text-sm font-semibold">Personalize sua visão</h2><span class="text-xs text-slate-500">Todos os filtros se combinam pelo vencimento</span></div>
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+            <label class="field">Buscar descrição<input v-model="draft.text" type="search" placeholder="O que você procura?" /></label>
+            <label class="field">Ano<input v-model="draft.year" type="number" min="1900" max="9999" placeholder="Todos os anos" /></label>
+            <label class="field">Mês<select v-model="draft.month"><option value="">Todos os meses</option><option v-for="(month, index) in months" :key="month" :value="String(index + 1)">{{ month }}</option></select></label>
+            <label class="field">Categoria<input v-model="draft.category" list="filter-categories" placeholder="Todas as categorias" /><datalist id="filter-categories"><option v-for="category in categories" :key="category" :value="category" /></datalist></label>
+            <label class="field">
+                            Situação
+                            <select v-model="draft.status">
+                                <option value="">Todas as situações</option>
+                                <optgroup label="Grupos de situações">
+                                    <option value="realized">Realizado · todas as baixas</option>
+                                    <option value="pending">Pendente · em aberto e em atraso</option>
+                                </optgroup>
+                                <optgroup label="Situações individuais">
+                                    <option value="open">Em aberto</option>
+                                    <option value="overdue">Em atraso</option>
+                                    <option value="paid">Liquidado no prazo</option>
+                                    <option value="paid_late">Liquidado em atraso</option>
+                                </optgroup>
+                            </select>
+                        </label>
+        </div>
+        <details><summary class="w-fit cursor-pointer text-xs font-medium text-brand-800">Mais filtros e ordenação</summary><div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label class="field">Vencimento de<input v-model="draft.from" type="date" /></label><label class="field">Vencimento até<input v-model="draft.to" type="date" :min="draft.from || undefined" /></label>
+            <label class="field">Direção<select v-model="draft.direction"><option value="">Entradas e saídas</option><option value="credit">Somente entradas</option><option value="debit">Somente saídas</option></select></label>
+            <label class="field">Tipo<select v-model="draft.kind"><option value="">Todos os tipos</option><option value="single">Único</option><option value="installment">Parcelado</option><option value="recurring">Recorrente</option></select></label>
+            <label class="field">Ordenar por<select v-model="draft.sort"><option value="due_date">Vencimento</option><option value="amount">Valor</option><option value="description">Descrição</option><option value="category">Categoria</option><option value="status">Situação</option></select></label><label class="field">Ordem<select v-model="draft.order"><option value="asc">Crescente</option><option value="desc">Decrescente</option></select></label><label class="field">Por página<select v-model="draft.per_page"><option value="10">10 registros</option><option value="25">25 registros</option><option value="50">50 registros</option><option value="100">100 registros</option></select></label>
+        </div></details>
+        <div class="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4"><button class="btn-primary" :disabled="busy">{{ busy ? 'Atualizando…' : 'Aplicar filtros' }}</button><button type="button" class="btn-quiet" :disabled="busy" @click="emit('reset')">Limpar filtros</button><p class="ml-auto text-xs text-slate-500">Filtros salvos no endereço desta página.</p></div>
+    </form>
+</template>
