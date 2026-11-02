@@ -10,7 +10,90 @@ Sistema de planejamento de contas a pagar e a receber. Permite projetar débitos
 - SQLite para desenvolvimento/testes; migrations e consultas compatíveis com MySQL 8+ e MariaDB 10.6+.
 - Extensões PHP usuais do Laravel, incluindo `pdo_sqlite` ou `pdo_mysql` conforme o banco.
 
-## Instalação e execução
+## Docker Compose — ambiente de desenvolvimento
+
+Requer Docker Engine/Docker Desktop e Docker Compose v2.20+ (plugin `docker compose`). Não é necessário instalar PHP, Composer, Node ou MariaDB na máquina host.
+
+Na raiz do projeto:
+
+```sh
+docker compose up -d --build --wait --wait-timeout 180
+```
+
+Acesse a aplicação pelo **localhost, porta 8080**. O Vite utiliza a porta 5173; abra a porta 8080 para usar o sistema. Na primeira execução, downloads, compilação das extensões PHP, Composer e npm podem demorar alguns minutos. A montagem local precisa conter todos os arquivos do projeto, incluindo `.env.example`.
+
+O Compose disponibiliza:
+
+| Serviço | Função |
+|---|---|
+| `web` | Nginx, servindo exclusivamente `public/`, porta 8080 |
+| `app` | PHP-FPM 8.3, Composer e extensões, executados sem root |
+| `database` | MariaDB 11.4, volume persistente, sem porta publicada no host |
+| `frontend` | Node 22, build inicial e Vite com HMR |
+| `scheduler` | `php artisan schedule:work` para avançar as recorrências |
+| `setup` | Instala dependências PHP, prepara diretórios, gera chave ausente e executa migrations; termina com código 0 |
+
+O serviço `setup` aguarda o banco saudável; os demais serviços da aplicação aguardam a conclusão do setup. `web` aguarda também o Vite saudável. Não há seed automático, usuário padrão nem transações bancárias.
+
+### Configuração e persistência
+
+- O `.env` existente **não é substituído**; se não existir, o setup copia `.env.example`. A chave existente é preservada. Uma chave ausente é gerada automaticamente e persistida no `.env` local. O setup limpa o cache de configuração para aplicar corretamente as variáveis dos containers.
+- O Compose sobrescreve a configuração de conexão **somente dentro dos containers**, usando `database:3306` e um banco MariaDB próprio. O SQLite e o MariaDB externos da máquina host não são usados nem importados.
+- Código-fonte, `storage/`, `.env` e assets compilados são compartilhados com o host. Dependências PHP e Node ficam nos volumes separados `vendor` e `node_modules`, evitando binários incompatíveis entre sistemas.
+- Os dados MariaDB ficam no volume `database`. `docker compose down` preserva os volumes. **`docker compose down -v` apaga o banco e as dependências dos containers definitivamente**; não use para uma parada normal.
+- PHP e Node usam UID/GID 1000 por padrão. Se o seu usuário Linux tiver IDs diferentes, consulte `id -u` e `id -g` e configure `LOCAL_UID` e `LOCAL_GID` no `.env` antes de construir as imagens. Não é necessário usar permissões `777`.
+
+Variáveis opcionais do Compose podem ser adicionadas ao `.env` local (os valores abaixo são apenas exemplos para desenvolvimento):
+
+```dotenv
+APP_PORT=8080
+VITE_PORT=5173
+VITE_HMR_HOST=localhost
+VITE_USE_POLLING=false
+LOCAL_UID=1000
+LOCAL_GID=1000
+DOCKER_DB_DATABASE=finances
+DOCKER_DB_USERNAME=finances
+DOCKER_DB_PASSWORD=finances_local_only
+```
+
+O banco é acessado pelo nome de serviço, sem depender do `DB_HOST` do `.env` nativo. Credenciais `DOCKER_DB_*` são aplicadas à criação do volume MariaDB; alterá-las depois não modifica automaticamente usuários/bancos já existentes. Se as portas estiverem ocupadas, ajuste `APP_PORT`/`VITE_PORT` e recrie os serviços com `docker compose up -d --build --wait`. Em Docker Desktop/WSL, ative `VITE_USE_POLLING=true` caso as alterações não sejam detectadas. As portas HTTP e Vite ficam restritas a `127.0.0.1`, para desenvolvimento local.
+
+### Comandos úteis
+
+```sh
+# Estado dos serviços; setup encerrado com código 0 é esperado
+docker compose ps --all
+
+# Acompanhar inicialização ou diagnosticar erros
+docker compose logs -f setup app web frontend scheduler
+
+# Executar comandos Laravel
+docker compose exec app php artisan migrate --no-interaction
+docker compose exec app php artisan finance:generate-occurrences --no-interaction
+docker compose exec app php artisan schedule:list --no-interaction
+
+# Testes e ferramentas dentro dos containers
+docker compose exec app php artisan test --compact
+docker compose exec frontend npm run typecheck
+docker compose exec frontend npm run test:frontend
+docker compose exec frontend npm run build
+
+# Instalar dependências após atualizar os arquivos lock
+docker compose run --rm setup
+docker compose restart frontend
+
+# Parar sem apagar os dados
+docker compose down
+```
+
+A configuração `phpunit.xml` força ambiente de testes e SQLite em memória tanto nas variáveis de processo quanto em `$_SERVER`, impedindo que os testes usem o MariaDB da aplicação por herança do Compose. Para testar contra MySQL/MariaDB, utilize uma configuração PHPUnit separada apontando para **um banco exclusivo de testes**.
+
+Ao encerrar o frontend normalmente, `public/hot` é removido e Laravel volta a usar o build compilado. Após uma parada forçada (`kill`/falha da máquina), se executar a aplicação fora do Docker, remova um eventual `public/hot` antigo antes de usar os assets compilados. O HMR aponta para `localhost`, não para o hostname interno do container.
+
+**Este Compose é de desenvolvimento**, com bind mounts, Vite e `APP_DEBUG=true`. As credenciais locais não são segredos de produção. Não exponha esta configuração à Internet. Produção exige imagens com código/assets incorporados, segredos próprios, HTTPS, debug desabilitado, backup e uma estratégia de implantação separada.
+
+## Instalação e execução sem Docker
 
 ```sh
 composer install
