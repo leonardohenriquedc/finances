@@ -164,6 +164,22 @@ A janela é `hoje + FINANCE_PROJECTION_MONTHS`, inclusiva, padrão 12 meses e li
 
 `FinancialPlan` guarda a regra do planejamento. `Occurrence` guarda cada parcela/ocorrência e seus valores previstos, competência, vencimento, baixa e ajustes individuais. Valores são enviados na API como **strings decimais**, por exemplo `"1234.56"`.
 
+### Prioridades de contas a pagar
+
+Planejamentos de saída, sejam únicos, parcelados ou recorrentes, permitem escolher:
+
+1. **Quando Puder** (`when_possible`): menor urgência.
+2. **É bom pagar logo** (`soon`): prioridade intermediária.
+3. **Extrema Necessidade** (`essential`): maior urgência.
+
+A prioridade organiza as contas a pagar; não muda vencimentos, valores, juros ou situação e não registra pagamentos. Entradas não têm prioridade (`null`). A migration preenche as saídas já existentes com `when_possible`, sem modificar seus outros campos; novos débitos sem uma escolha explícita também usam esse padrão.
+
+Cada parcela/ocorrência guarda sua prioridade para respeitar as edições “somente esta”, “esta e as próximas” e “todo o plano”. As ocorrências com baixa e as exceções individuais são preservadas nos recálculos. É possível ajustar somente a prioridade de uma ocorrência não realizada sem alterar as demais.
+
+As etiquetas aparecem na tabela, nos próximos vencimentos e nos cartões de recorrências. O filtro `priority` é mantido na URL e aplicado igualmente à tabela, aos totais, ao dashboard e ao CSV. A ordenação `sort=priority` usa a urgência, não a ordem alfabética: `asc` da menor para a maior; `desc` da maior para a menor. Entradas ficam ao final nas duas ordens, e os empates são resolvidos pelo vencimento e pelo identificador. O CSV inclui a coluna Prioridade com os rótulos em português.
+
+Para atualizar outra instalação, execute `php artisan migrate --no-interaction` ou `docker compose exec app php artisan migrate --no-interaction` antes de acessar a nova versão.
+
 ### Único, parcelado e recorrente
 
 - **Único:** uma ocorrência. Não aplica juros.
@@ -228,7 +244,7 @@ Geração, edição, baixa e exclusão são transacionais. O bloqueio da linha d
 
 Todos os indicadores e gráficos respeitam o mesmo recorte da tabela. O agrupamento é pelo **vencimento**, não pela competência nem pela data da baixa. O acumulado começa em zero no recorte e não representa um saldo bancário ou saldo anterior. Somente meses com registros aparecem nas séries.
 
-Filtros combináveis de mês, ano, intervalo inclusivo, categoria, situação, texto, direção e tipo. Mês/ano e intervalo se **intersectam**. `pending` e `realized` são filtros agrupados adicionais usados nos gráficos: aberto+vencido e pago+pago em atraso, respectivamente. Ordenação e paginação são feitas no servidor; os totais abrangem todos os resultados filtrados, não apenas a página. Filtros persistem na URL, inclusive ao voltar/avançar no navegador.
+Filtros combináveis de mês, ano, intervalo inclusivo, categoria, situação, texto, direção, tipo e prioridade. Mês/ano e intervalo se **intersectam**. `pending` e `realized` são filtros agrupados adicionais usados nos gráficos: aberto+vencido e pago+pago em atraso, respectivamente. Ordenação e paginação são feitas no servidor; os totais abrangem todos os resultados filtrados, não apenas a página. Filtros persistem na URL, inclusive ao voltar/avançar no navegador.
 
 CSV exporta **todos** os resultados filtrados e ordenados, ignorando a página, em UTF-8 com BOM, vírgula como separador e decimais com ponto. Prefixos de fórmula em textos são neutralizados para reduzir o risco de CSV injection.
 
@@ -255,7 +271,7 @@ Base: `/api/v1`. A API é **same-origin**, autenticada pelo guard de sessão `we
 | GET | `/categories` | Categorias do usuário |
 | GET | `/dashboard` | Indicadores, séries e próximos vencimentos |
 
-`PUT /plans/{id}` aceita edição parcial e os campos `scope: all|future`, com `occurrence_id` obrigatório para `future`. A edição individual utiliza `PATCH /occurrences/{id}`. Filtros de listagem: `month`, `year`, `from`, `to`, `category`, `status`, `text`, `direction`, `kind`, `sort`, `order`, `page`, `per_page` (1–100). Ordenações permitidas: `due_date`, `amount`, `description`, `category`, `status`; ordem `asc|desc`.
+`PUT /plans/{id}` aceita edição parcial e os campos `scope: all|future`, com `occurrence_id` obrigatório para `future`. A edição individual utiliza `PATCH /occurrences/{id}`. Filtros de listagem: `month`, `year`, `from`, `to`, `category`, `status`, `text`, `direction`, `kind`, `priority`, `sort`, `order`, `page`, `per_page` (1–100). Ordenações permitidas: `due_date`, `amount`, `description`, `category`, `status`, `priority`; ordem `asc|desc`.
 
 Consultas, gráficos, categorias, exportações e mutações são isolados por usuário. Identificadores de outro usuário retornam 404. Login/cadastro têm limitação por conta+IP e por IP. Erros de validação retornam 422; ausência de autenticação, 401. Não há chaves de serviços externos ou integração financeira.
 
@@ -269,7 +285,7 @@ npm run build
 vendor/bin/pint --format agent
 ```
 
-Validação local: **174 testes PHP passaram (966 asserções)**, **10 testes de formatação monetária do frontend passaram**, checagem TypeScript e build de produção passaram. Os testes de frontend usam o runner nativo do Node, sem novas bibliotecas de testes.
+Validação local: **216 testes PHP passaram (1.350 asserções)**, **18 testes do frontend passaram (formatação monetária e prioridades)**, checagem TypeScript e build de produção passaram. Os testes de frontend usam o runner nativo do Node, sem novas bibliotecas de testes.
 
 Os testes PHP usam SQLite em memória, conforme `phpunit.xml`; nunca aponte testes destrutivos para o banco da aplicação. Cobrem cálculos, arredondamento, recorrências, calendário, preservação histórica, idempotência, API, filtros, totais, CSV, autenticação, CSRF, rate limiting e isolamento por usuário. Para validar especificamente MySQL/MariaDB, prepare **um banco exclusivo de testes**, configure o ambiente de testes e remova as substituições SQLite de `phpunit.xml` em uma configuração separada antes de executar a suíte.
 

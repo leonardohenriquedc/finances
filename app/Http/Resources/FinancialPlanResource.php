@@ -15,6 +15,7 @@ class FinancialPlanResource extends JsonResource
             'description' => $this->description,
             'category' => $this->category,
             'direction' => $this->direction,
+            'priority' => $this->priority,
             'kind' => $this->kind,
             'amount' => $this->amount,
             'amount_mode' => $this->amount_mode,

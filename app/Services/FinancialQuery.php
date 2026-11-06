@@ -15,7 +15,7 @@ class FinancialQuery
     public function filtered(User $user, array $filters): Builder
     {
         $query = Occurrence::query()->where('user_id', $user->id)->where('is_deleted', false);
-        foreach (['category', 'direction', 'kind'] as $field) {
+        foreach (['category', 'direction', 'kind', 'priority'] as $field) {
             if (! empty($filters[$field])) {
                 $query->where($field, $filters[$field]);
             }
@@ -60,7 +60,11 @@ class FinancialQuery
     {
         $sort = $filters['sort'] ?? 'due_date';
         $order = $filters['order'] ?? 'asc';
-        if ($sort === 'status') {
+        if ($sort === 'priority') {
+            $query->orderByRaw("CASE WHEN direction = 'credit' OR priority IS NULL THEN 1 ELSE 0 END")
+                ->orderByRaw("CASE priority WHEN 'when_possible' THEN 1 WHEN 'soon' THEN 2 WHEN 'essential' THEN 3 ELSE 0 END ".$order)
+                ->orderBy('due_date');
+        } elseif ($sort === 'status') {
             $query->orderByRaw("CASE WHEN paid_at IS NOT NULL AND paid_at > due_date THEN 'paid_late' WHEN paid_at IS NOT NULL THEN 'paid' WHEN due_date < ? THEN 'overdue' ELSE 'open' END ".$order, [today()->toDateString()]);
         } elseif ($sort === 'amount' && $query->getModel()->getConnection()->getDriverName() === 'sqlite') {
             // SQLite stores canonical two-decimal strings; integer cents avoid floating-point sorting.

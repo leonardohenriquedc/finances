@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\FinancialPlan;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class OccurrenceFilterRequest extends FormRequest
 {
@@ -20,11 +22,12 @@ class OccurrenceFilterRequest extends FormRequest
             'from' => ['nullable', 'date_format:Y-m-d'],
             'to' => ['nullable', 'date_format:Y-m-d', ...($this->filled('from') ? ['after_or_equal:from'] : [])],
             'category' => ['nullable', 'string', 'max:255'],
+            'priority' => ['nullable', Rule::in(array_keys(FinancialPlan::PRIORITIES))],
             'status' => ['nullable', 'in:open,overdue,paid,paid_late,pending,realized'],
             'text' => ['nullable', 'string', 'max:255'],
             'direction' => ['nullable', 'in:debit,credit'],
             'kind' => ['nullable', 'in:single,installment,recurring'],
-            'sort' => ['nullable', 'in:due_date,amount,description,category,status'],
+            'sort' => ['nullable', 'in:due_date,amount,description,category,status,priority'],
             'order' => ['nullable', 'in:asc,desc'],
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', 'between:1,100'],

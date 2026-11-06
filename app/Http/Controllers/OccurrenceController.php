@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -47,13 +48,18 @@ class OccurrenceController extends Controller
         $data = $request->validate([
             'description' => ['sometimes', 'required', 'string', 'max:255'],
             'category' => ['sometimes', 'required', 'string', 'max:255'],
+            'priority' => ['nullable', Rule::in(array_keys(FinancialPlan::PRIORITIES))],
             'amount' => ['sometimes', 'required', 'numeric', 'min:0.01', 'regex:/^\d{1,13}(\.\d{1,2})?$/'],
             'competence_date' => ['sometimes', 'required', 'date_format:Y-m-d'],
             'due_date' => ['sometimes', 'required', 'date_format:Y-m-d'],
         ]);
         $updated = $this->mutate($row, function (Occurrence $locked) use ($data): void {
             $this->requireUnpaid($locked);
-            $locked->fill([...$data, 'is_override' => true])->save();
+            $attributes = $data;
+            if (array_key_exists('priority', $attributes)) {
+                $attributes['priority'] = $locked->direction === 'debit' ? ($attributes['priority'] ?? 'when_possible') : null;
+            }
+            $locked->fill([...$attributes, 'is_override' => true])->save();
         });
 
         return new OccurrenceResource($updated);
@@ -102,11 +108,12 @@ class OccurrenceController extends Controller
         return response()->streamDownload(function () use ($query): void {
             $file = fopen('php://output', 'w');
             fwrite($file, "\xEF\xBB\xBF");
-            fputcsv($file, ['Descrição', 'Categoria', 'Direção', 'Tipo', 'Competência', 'Vencimento', 'Valor previsto (BRL)', 'Situação', 'Data da baixa', 'Valor realizado (BRL)'], ',', '"', '');
+            fputcsv($file, ['Descrição', 'Categoria', 'Prioridade', 'Direção', 'Tipo', 'Competência', 'Vencimento', 'Valor previsto (BRL)', 'Situação', 'Data da baixa', 'Valor realizado (BRL)'], ',', '"', '');
             $statuses = ['open' => 'Em aberto', 'overdue' => 'Vencida', 'paid' => 'Paga', 'paid_late' => 'Paga em atraso'];
             foreach ($query->cursor() as $row) {
                 fputcsv($file, [
                     $this->csvText($row->description), $this->csvText($row->category),
+                    FinancialPlan::PRIORITIES[$row->priority] ?? '',
                     $row->direction === 'credit' ? 'Crédito' : 'Débito',
                     ['single' => 'Único', 'installment' => 'Parcelado', 'recurring' => 'Recorrente'][$row->kind],
                     $row->competence_date->toDateString(), $row->due_date->toDateString(), $row->amount,

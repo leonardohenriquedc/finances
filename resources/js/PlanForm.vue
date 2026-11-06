@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue';
-import type { FinancialPlan, Occurrence, FieldErrors } from './types';
+import { computed, reactive, ref, watch } from 'vue';
+import type { Direction, FinancialPlan, Occurrence, FieldErrors } from './types';
+import { paymentPriority, priorityLabels } from './priority';
 import { api, ApiError, errorMessage, today, date } from './api';
 import Errors from './Errors.vue';
 const props = defineProps<{ plan?: FinancialPlan; occurrence?: Occurrence; categories: string[] }>();
@@ -9,7 +10,7 @@ const scope = ref<'one' | 'future' | 'all'>(props.occurrence && !props.occurrenc
 const form = reactive({
     description: '',
     category: '',
-    direction: 'debit',
+    direction: 'debit' as Direction,
     kind: 'single',
     amount: '',
     amount_mode: 'total',
@@ -23,9 +24,30 @@ const form = reactive({
     end_date: null as string | null,
     occurrence_limit: null as number | null,
     ...props.plan,
+    priority: paymentPriority(props.plan?.direction ?? 'debit', props.plan?.priority),
 });
-if (props.occurrence && scope.value === 'one') { Object.assign(form, { description: props.occurrence.description, category: props.occurrence.category, amount: props.occurrence.amount, competence_date: props.occurrence.competence_date, first_due_date: props.occurrence.due_date }); }
-watch(scope, value => { if (props.plan) Object.assign(form, props.plan); if (value === 'one' && props.occurrence) Object.assign(form, { description: props.occurrence.description, category: props.occurrence.category, amount: props.occurrence.amount, competence_date: props.occurrence.competence_date, first_due_date: props.occurrence.due_date }); });
+const effectiveDirection = computed(() => props.occurrence && scope.value === 'one' ? props.occurrence.direction : form.direction);
+watch(effectiveDirection, direction => { form.priority = paymentPriority(direction, null); }, { flush: 'sync' });
+function resetScope(): void {
+    if (props.plan) {
+        Object.assign(form, props.plan);
+    }
+    if (props.occurrence && scope.value === 'one') {
+        Object.assign(form, {
+            description: props.occurrence.description,
+            category: props.occurrence.category,
+            direction: props.occurrence.direction,
+            amount: props.occurrence.amount,
+            competence_date: props.occurrence.competence_date,
+            first_due_date: props.occurrence.due_date,
+            priority: paymentPriority(props.occurrence.direction, props.occurrence.priority),
+        });
+    } else {
+        form.priority = paymentPriority(form.direction, props.plan?.priority);
+    }
+}
+watch(scope, resetScope);
+resetScope();
 watch(() => form.kind, kind => {
     if (kind === 'recurring') {
         form.amount_mode = 'per_installment';
@@ -58,6 +80,7 @@ async function save(): Promise<void> {
             await api(`/occurrences/${props.occurrence.id}`, 'PATCH', {
                 description: form.description,
                 category: form.category,
+                priority: paymentPriority(effectiveDirection.value, form.priority),
                 amount: String(form.amount).replace(',', '.'),
                 competence_date: form.competence_date,
                 due_date: form.first_due_date,
@@ -66,6 +89,7 @@ async function save(): Promise<void> {
             const { id, state, ...payload } = form;
             await api(props.plan ? `/plans/${props.plan.id}` : '/plans', props.plan ? 'PUT' : 'POST', {
                 ...payload,
+                priority: paymentPriority(effectiveDirection.value, form.priority),
                 amount: String(form.amount).replace(',', '.'),
                 interest_rate: form.kind === 'installment' && form.interest_type !== 'none'
                     ? String(form.interest_rate).replace(',', '.') : '0',
@@ -99,10 +123,10 @@ async function save(): Promise<void> {
         </label>
         <p v-if="occurrence?.paid_at" class="text-xs leading-relaxed text-slate-500">
             Esta ocorrência já foi liquidada. Você pode editar somente o plano inteiro ou a partir desta ocorrência;
-            os lançamentos com baixa são preservados.
+            os lançamentos com baixa e os ajustes individuais são preservados.
         </p>
         <p v-if="scope === 'future' && plan" class="rounded-xl bg-sky-50 p-4 text-xs leading-relaxed text-sky-900">
-            A ocorrência selecionada define a partir de onde as alterações se aplicam.
+            A ocorrência selecionada define a partir de onde as alterações se aplicam. Baixas e ajustes individuais são preservados.
             As datas de competência e primeiro vencimento continuam sendo as datas-base do plano original
             (primeiro vencimento: {{ date(plan.first_due_date) }}), não as datas desta ocorrência.
             Ajuste essas referências do plano, sem tratá-las como um novo início na ocorrência selecionada.
@@ -111,6 +135,10 @@ async function save(): Promise<void> {
             <label class="field sm:col-span-2">Descrição<input v-model="form.description" required maxlength="255" autofocus :aria-invalid="!!fields.description" /></label>
             <label class="field">Categoria<input v-model="form.category" list="plan-categories" required maxlength="255" :aria-invalid="!!fields.category" /><datalist id="plan-categories"><option v-for="category in categories" :key="category" :value="category" /></datalist></label>
             <label v-if="scope !== 'one' || !plan" class="field">Direção<select v-model="form.direction"><option value="debit">Saída · débito</option><option value="credit">Entrada · crédito</option></select></label>
+            <label v-if="effectiveDirection === 'debit'" class="field">Prioridade de pagamento
+                <select v-model="form.priority" required :aria-invalid="!!fields.priority" aria-describedby="priority-help"><option v-for="(label, value) in priorityLabels" :key="value" :value="value">{{ label }}</option></select>
+                <span id="priority-help" class="text-xs font-normal text-slate-500">Organiza o pagamento, sem alterar vencimento ou situação e sem registrar baixa.</span>
+            </label>
             <label v-if="scope !== 'one' || !plan" class="field">Tipo de plano<select v-model="form.kind"><option value="single">Lançamento único</option><option value="installment">Parcelamento</option><option value="recurring">Recorrência</option></select></label>
             <label class="field">{{ scope === 'one' && plan ? 'Valor desta ocorrência (R$)' : 'Valor informado (R$)' }}<input v-model="form.amount" type="text" pattern="[0-9]+([.,][0-9]{1,2})?" placeholder="0,00" title="Informe um valor positivo, com até duas casas decimais." required inputmode="decimal" :aria-invalid="!!fields.amount" /></label>
             <template v-if="scope !== 'one' || !plan">

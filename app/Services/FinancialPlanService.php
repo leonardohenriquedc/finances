@@ -9,6 +9,7 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class FinancialPlanService
@@ -19,7 +20,7 @@ class FinancialPlanService
     private const EDITABLE = [
         'description', 'category', 'direction', 'kind', 'amount', 'amount_mode',
         'installment_count', 'frequency', 'interest_type', 'interest_rate', 'interest_period',
-        'competence_date', 'first_due_date', 'end_date', 'occurrence_limit',
+        'competence_date', 'first_due_date', 'end_date', 'occurrence_limit', 'priority',
     ];
 
     public function __construct(private FinancialAmountCalculator $calculator) {}
@@ -211,6 +212,7 @@ class FinancialPlanService
             'description' => $plan->description,
             'category' => $plan->category,
             'direction' => $plan->direction,
+            'priority' => $plan->priority,
             'kind' => $plan->kind,
             'amount' => $this->calculator->amount($plan, $sequence, $dueDate),
             'competence_date' => $plan->kind === 'recurring'
@@ -237,6 +239,9 @@ class FinancialPlanService
      */
     private function validated(array $data): array
     {
+        $data['priority'] = ($data['direction'] ?? null) === 'debit'
+            ? ($data['priority'] ?? 'when_possible')
+            : null;
         if (in_array($data['kind'] ?? null, ['single', 'recurring'], true)) {
             $data['installment_count'] = 1;
             $data['amount_mode'] = $data['kind'] === 'recurring' ? 'per_installment' : 'total';
@@ -253,6 +258,7 @@ class FinancialPlanService
             'description' => ['required', 'string', 'max:255'],
             'category' => ['required', 'string', 'max:255'],
             'direction' => ['required', 'in:debit,credit'],
+            'priority' => ['nullable', Rule::in(array_keys(FinancialPlan::PRIORITIES))],
             'kind' => ['required', 'in:single,installment,recurring'],
             'amount' => ['required', 'numeric', 'min:0.01', 'max:9999999999999.99', 'regex:/^\d{1,13}(\.\d{1,2})?$/'],
             'amount_mode' => ['required', 'in:total,per_installment'],
@@ -285,7 +291,7 @@ class FinancialPlanService
             'interest_type' => 'tipo de juros', 'interest_rate' => 'taxa de juros',
             'interest_period' => 'período dos juros', 'competence_date' => 'data de competência',
             'first_due_date' => 'primeiro vencimento', 'end_date' => 'data final',
-            'occurrence_limit' => 'limite de ocorrências',
+            'occurrence_limit' => 'limite de ocorrências', 'priority' => 'prioridade',
         ])->validate();
 
     }

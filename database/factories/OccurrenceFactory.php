@@ -18,6 +18,7 @@ class OccurrenceFactory extends Factory
             'description' => fake()->sentence(3),
             'category' => 'General',
             'direction' => 'debit',
+            'priority' => fn (array $attributes): ?string => $attributes['direction'] === 'debit' ? 'when_possible' : null,
             'kind' => 'single',
             'amount' => '100.00',
             'competence_date' => today()->toDateString(),

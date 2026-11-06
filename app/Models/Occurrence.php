@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['financial_plan_id', 'user_id', 'sequence', 'description', 'category', 'direction', 'kind', 'amount', 'competence_date', 'due_date', 'paid_at', 'paid_amount', 'is_override', 'is_deleted'])]
+#[Fillable(['financial_plan_id', 'user_id', 'sequence', 'description', 'category', 'direction', 'priority', 'kind', 'amount', 'competence_date', 'due_date', 'paid_at', 'paid_amount', 'is_override', 'is_deleted'])]
 class Occurrence extends Model
 {
     /** @use HasFactory<OccurrenceFactory> */

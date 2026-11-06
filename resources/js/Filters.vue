@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, watch } from 'vue';
 import type { Filters } from './types';
+import { priorityLabels } from './priority';
 const props = defineProps<{ filters: Filters; categories: string[]; busy: boolean }>();
 const emit = defineEmits<{ apply: [filters: Filters]; reset: [] }>();
 const draft = reactive({ ...props.filters });
@@ -35,9 +36,10 @@ const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Jul
         <details><summary class="w-fit cursor-pointer text-xs font-medium text-brand-800">Mais filtros e ordenação</summary><div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label class="field">Vencimento de<input v-model="draft.from" type="date" /></label><label class="field">Vencimento até<input v-model="draft.to" type="date" :min="draft.from || undefined" /></label>
             <label class="field">Direção<select v-model="draft.direction"><option value="">Entradas e saídas</option><option value="credit">Somente entradas</option><option value="debit">Somente saídas</option></select></label>
-            <label class="field">Tipo<select v-model="draft.kind"><option value="">Todos os tipos</option><option value="single">Único</option><option value="installment">Parcelado</option><option value="recurring">Recorrente</option></select></label>
-            <label class="field">Ordenar por<select v-model="draft.sort"><option value="due_date">Vencimento</option><option value="amount">Valor</option><option value="description">Descrição</option><option value="category">Categoria</option><option value="status">Situação</option></select></label><label class="field">Ordem<select v-model="draft.order"><option value="asc">Crescente</option><option value="desc">Decrescente</option></select></label><label class="field">Por página<select v-model="draft.per_page"><option value="10">10 registros</option><option value="25">25 registros</option><option value="50">50 registros</option><option value="100">100 registros</option></select></label>
-        </div></details>
+            <label class="field">Prioridade de pagamento<select v-model="draft.priority"><option value="">Todas as prioridades</option><option v-for="(label, value) in priorityLabels" :key="value" :value="value">{{ label }}</option></select></label>
+                        <label class="field">Tipo<select v-model="draft.kind"><option value="">Todos os tipos</option><option value="single">Único</option><option value="installment">Parcelado</option><option value="recurring">Recorrente</option></select></label>
+            <label class="field">Ordenar por<select v-model="draft.sort"><option value="due_date">Vencimento</option><option value="amount">Valor</option><option value="description">Descrição</option><option value="category">Categoria</option><option value="status">Situação</option><option value="priority">Prioridade de pagamento</option></select></label><label class="field">Ordem<select v-model="draft.order"><option value="asc">Crescente</option><option value="desc">Decrescente</option></select></label><label class="field">Por página<select v-model="draft.per_page"><option value="10">10 registros</option><option value="25">25 registros</option><option value="50">50 registros</option><option value="100">100 registros</option></select></label>
+        </div><p class="mt-3 text-xs text-slate-500">A prioridade organiza o pagamento das saídas, sem alterar vencimento ou situação. Na ordenação, crescente vai de Quando Puder a Extrema Necessidade; decrescente inverte essa ordem. Entradas ficam ao final em ambas.</p></details>
         <div class="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4"><button class="btn-primary" :disabled="busy">{{ busy ? 'Atualizando…' : 'Aplicar filtros' }}</button><button type="button" class="btn-quiet" :disabled="busy" @click="emit('reset')">Limpar filtros</button><p class="ml-auto text-xs text-slate-500">Filtros salvos no endereço desta página.</p></div>
     </form>
 </template>

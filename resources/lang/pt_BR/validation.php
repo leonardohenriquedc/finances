@@ -27,6 +27,6 @@ return [
         'occurrence_id' => 'ocorrência de referência', 'paid_at' => 'data da baixa', 'paid_amount' => 'valor realizado',
         'month' => 'mês', 'year' => 'ano', 'from' => 'data inicial', 'to' => 'data final', 'status' => 'situação',
         'text' => 'texto', 'sort' => 'ordenação', 'order' => 'direção da ordenação', 'page' => 'página',
-        'per_page' => 'resultados por página', 'action' => 'ação',
+        'per_page' => 'resultados por página', 'action' => 'ação', 'priority' => 'prioridade',
     ],
 ];

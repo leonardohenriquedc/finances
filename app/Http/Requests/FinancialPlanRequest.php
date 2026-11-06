@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Models\FinancialPlan;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class FinancialPlanRequest extends FormRequest
 {
@@ -29,6 +30,7 @@ class FinancialPlanRequest extends FormRequest
             'description' => [$presence, 'string', 'max:255'],
             'category' => [$presence, 'string', 'max:255'],
             'direction' => [$presence, 'in:debit,credit'],
+            'priority' => ['nullable', Rule::in(array_keys(FinancialPlan::PRIORITIES))],
             'kind' => [$presence, 'in:single,installment,recurring'],
             'amount' => [$presence, 'numeric', 'min:0.01', 'regex:/^\d{1,13}(\.\d{1,2})?$/'],
             'amount_mode' => ['sometimes', 'in:total,per_installment'],

@@ -17,6 +17,7 @@ class OccurrenceResource extends JsonResource
             'description' => $this->description,
             'category' => $this->category,
             'direction' => $this->direction,
+            'priority' => $this->priority,
             'kind' => $this->kind,
             'amount' => $this->amount,
             'competence_date' => $this->competence_date->toDateString(),

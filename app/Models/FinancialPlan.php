@@ -9,9 +9,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-#[Fillable(['user_id', 'description', 'category', 'direction', 'kind', 'amount', 'amount_mode', 'installment_count', 'frequency', 'interest_type', 'interest_rate', 'interest_period', 'competence_date', 'first_due_date', 'end_date', 'occurrence_limit', 'state'])]
+#[Fillable(['user_id', 'description', 'category', 'direction', 'priority', 'kind', 'amount', 'amount_mode', 'installment_count', 'frequency', 'interest_type', 'interest_rate', 'interest_period', 'competence_date', 'first_due_date', 'end_date', 'occurrence_limit', 'state'])]
 class FinancialPlan extends Model
 {
+    public const PRIORITIES = [
+        'when_possible' => 'Quando Puder',
+        'soon' => 'É bom pagar logo',
+        'essential' => 'Extrema Necessidade',
+    ];
+
     /** @use HasFactory<FinancialPlanFactory> */
     use HasFactory;
 
