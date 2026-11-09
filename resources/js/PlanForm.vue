@@ -26,6 +26,10 @@ const form = reactive({
     ...props.plan,
     priority: paymentPriority(props.plan?.direction ?? 'debit', props.plan?.priority),
 });
+const existingMultiPlan = computed(() => props.plan?.kind === 'installment' || props.plan?.kind === 'recurring');
+const historicalFinancialFieldsReadonly = computed(() => scope.value === 'one' && !!props.occurrence
+    && (props.occurrence.kind === 'installment' || props.occurrence.kind === 'recurring')
+    && props.occurrence.due_date.slice(0, 10) <= today());
 const effectiveDirection = computed(() => props.occurrence && scope.value === 'one' ? props.occurrence.direction : form.direction);
 watch(effectiveDirection, direction => { form.priority = paymentPriority(direction, null); }, { flush: 'sync' });
 function resetScope(): void {
@@ -117,16 +121,30 @@ async function save(): Promise<void> {
             Aplicar alterações a
             <select v-model="scope" :disabled="busy || plan.state === 'ended'">
                 <option v-if="occurrence && !occurrence.paid_at" value="one">Somente esta ocorrência (preserva o plano)</option>
-                <option v-if="occurrence" value="future">A partir desta ocorrência (preserva baixas)</option>
-                <option value="all">Todo o plano (preserva baixas)</option>
+                <option v-if="occurrence" value="future">{{ existingMultiPlan ? 'Desta sequência em diante (valores somente futuros)' : 'A partir desta ocorrência (preserva baixas)' }}</option>
+                <option value="all">{{ existingMultiPlan ? 'Plano inteiro (valores somente futuros)' : 'Todo o plano (preserva baixas)' }}</option>
             </select>
         </label>
         <p v-if="occurrence?.paid_at" class="text-xs leading-relaxed text-slate-500">
             Esta ocorrência já foi liquidada. Você pode editar somente o plano inteiro ou a partir desta ocorrência;
             os lançamentos com baixa e os ajustes individuais são preservados.
         </p>
+        <p v-if="historicalFinancialFieldsReadonly" id="historical-financial-help" class="text-xs leading-relaxed text-slate-500">
+            Valores e vencimentos de hoje ou anteriores são preservados; somente futuros podem ser alterados em parcelas e recorrências.
+            Descrição, categoria, competência e prioridade continuam editáveis nesta ocorrência.
+            A data local do navegador orienta este bloqueio; a data do servidor é a referência definitiva para a validação.
+        </p>
+        <p v-if="existingMultiPlan && scope !== 'one'" class="text-xs leading-relaxed text-slate-500">
+            Alterações de valor e condições financeiras afetam somente ocorrências com vencimento estritamente posterior a hoje.
+            Valores e vencimentos de hoje ou anteriores, todas as baixas (inclusive em atraso) e os ajustes individuais são preservados.
+            <template v-if="scope === 'future'">Também se aplica o limite da sequência selecionada: somente ela e as seguintes, com vencimento futuro, são elegíveis. Selecionar uma ocorrência passada não libera alterações financeiras no histórico.</template>
+            Alterações apenas de descrição ou prioridade mantêm o comportamento atual do escopo, sem essa nova restrição de data.
+            As datas-base continuam sendo as do plano original. O cálculo continua usando o principal total e a quantidade de parcelas informados,
+            sem descontar o histórico preservado; por isso, a soma do histórico com as parcelas futuras pode diferir do novo total.
+            A data do servidor é a referência definitiva para determinar o que é futuro.
+        </p>
         <p v-if="scope === 'future' && plan" class="rounded-xl bg-sky-50 p-4 text-xs leading-relaxed text-sky-900">
-            A ocorrência selecionada define a partir de onde as alterações se aplicam. Baixas e ajustes individuais são preservados.
+            A ocorrência selecionada define o limite de sequência do escopo; para valores e condições financeiras de parcelas e recorrências, também é necessário vencimento posterior a hoje. Baixas e ajustes individuais são preservados.
             As datas de competência e primeiro vencimento continuam sendo as datas-base do plano original
             (primeiro vencimento: {{ date(plan.first_due_date) }}), não as datas desta ocorrência.
             Ajuste essas referências do plano, sem tratá-las como um novo início na ocorrência selecionada.
@@ -140,7 +158,7 @@ async function save(): Promise<void> {
                 <span id="priority-help" class="text-xs font-normal text-slate-500">Organiza o pagamento, sem alterar vencimento ou situação e sem registrar baixa.</span>
             </label>
             <label v-if="scope !== 'one' || !plan" class="field">Tipo de plano<select v-model="form.kind"><option value="single">Lançamento único</option><option value="installment">Parcelamento</option><option value="recurring">Recorrência</option></select></label>
-            <label class="field">{{ scope === 'one' && plan ? 'Valor desta ocorrência (R$)' : 'Valor informado (R$)' }}<input v-model="form.amount" type="text" pattern="[0-9]+([.,][0-9]{1,2})?" placeholder="0,00" title="Informe um valor positivo, com até duas casas decimais." required inputmode="decimal" :aria-invalid="!!fields.amount" /></label>
+            <label class="field">{{ scope === 'one' && plan ? 'Valor desta ocorrência (R$)' : 'Valor informado (R$)' }}<input v-model="form.amount" type="text" pattern="[0-9]+([.,][0-9]{1,2})?" placeholder="0,00" title="Informe um valor positivo, com até duas casas decimais." required inputmode="decimal" :readonly="historicalFinancialFieldsReadonly" :aria-describedby="historicalFinancialFieldsReadonly ? 'historical-financial-help' : undefined" :aria-invalid="!!fields.amount" /></label>
             <template v-if="scope !== 'one' || !plan">
                 <label class="field">
                     Este valor representa
@@ -155,7 +173,7 @@ async function save(): Promise<void> {
                 <label v-if="form.kind !== 'single'" class="field">Frequência dos vencimentos<select v-model="form.frequency"><option value="daily">Diária</option><option value="weekly">Semanal</option><option value="monthly">Mensal</option><option value="yearly">Anual</option></select></label>
             </template>
             <label class="field">Data de competência<input v-model="form.competence_date" type="date" required /></label>
-            <label class="field">{{ scope === 'one' && plan ? 'Vencimento' : 'Primeiro vencimento' }}<input v-model="form.first_due_date" type="date" required /></label>
+            <label class="field">{{ scope === 'one' && plan ? 'Vencimento' : 'Primeiro vencimento' }}<input v-model="form.first_due_date" type="date" required :readonly="historicalFinancialFieldsReadonly" :aria-describedby="historicalFinancialFieldsReadonly ? 'historical-financial-help' : undefined" /></label>
             <template v-if="(scope !== 'one' || !plan) && form.kind === 'installment'">
                 <label class="field">Juros<select v-model="form.interest_type"><option value="none">Sem juros</option><option value="simple">Juros simples</option><option value="compound">Juros compostos</option></select></label>
                 <template v-if="form.interest_type !== 'none'"><label class="field">Taxa de juros (%)<input v-model="form.interest_rate" type="text" pattern="[0-9]+([.,][0-9]{1,4})?" inputmode="decimal" title="Informe uma taxa não negativa, com até quatro casas decimais." required /></label><label class="field">Período da taxa (independente da frequência)<select v-model="form.interest_period"><option value="daily">Ao dia</option><option value="monthly">Ao mês</option><option value="yearly">Ao ano</option></select></label></template>

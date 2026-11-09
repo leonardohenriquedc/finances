@@ -32,6 +32,7 @@ class FinancialPlan extends Model
             'first_due_date' => 'immutable_date',
             'end_date' => 'immutable_date',
             'projection_resume_date' => 'immutable_date',
+            'value_effective_after' => 'immutable_date',
         ];
     }
 

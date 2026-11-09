@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\FinancialPlan;
 use App\Models\Occurrence;
 use App\Models\User;
+use Brick\Math\BigDecimal;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,12 @@ class FinancialPlanService
         'description', 'category', 'direction', 'kind', 'amount', 'amount_mode',
         'installment_count', 'frequency', 'interest_type', 'interest_rate', 'interest_period',
         'competence_date', 'first_due_date', 'end_date', 'occurrence_limit', 'priority',
+    ];
+
+    private const FINANCIAL_TERMS = [
+        'amount', 'amount_mode', 'installment_count', 'interest_type', 'interest_rate',
+        'interest_period', 'competence_date', 'first_due_date', 'frequency', 'kind',
+        'direction', 'end_date', 'occurrence_limit',
     ];
 
     public function __construct(private FinancialAmountCalculator $calculator) {}
@@ -47,7 +54,9 @@ class FinancialPlanService
      * remain unchanged. Ordinary generation only inserts missing rows; active updates rebuild pending
      * rows. Before future edits, earlier gaps are frozen with old terms (or tombstones for paused
      * dates). Paused edits retain existing overdue rows and apply new terms when resumed. Ended
-     * plans reject edits. Preserving paid amounts can make revised totals differ from history.
+     * plans reject edits. Financial revisions of multi-occurrence plans also freeze every date
+     * through today and persist a generation floor, so later jobs cannot backfill revised history.
+     * Preserving historical amounts can make revised totals differ from the new plan principal.
      *
      * @param  array<string, mixed>  $data
      */
@@ -77,13 +86,34 @@ class FinancialPlanService
             if ($attributes['kind'] !== $locked->kind && $locked->occurrences()->whereNotNull('paid_at')->exists()) {
                 throw ValidationException::withMessages(['kind' => 'Não é possível alterar o tipo de um planejamento com pagamentos registrados.']);
             }
+            $multiPlan = in_array($locked->kind, ['installment', 'recurring'], true)
+                || in_array($attributes['kind'], ['installment', 'recurring'], true);
+            $financialRevision = $multiPlan && $this->financialTermsChanged($current, $attributes);
+            if ($financialRevision) {
+                $this->preserveValueHistory($locked);
+                $locked->value_effective_after = $locked->value_effective_after !== null
+                    ? $locked->value_effective_after->max(CarbonImmutable::today())
+                    : CarbonImmutable::today();
+            }
             if ($scope === 'future') {
                 $this->preserveBeforeAnchor($locked, $sequence);
             }
             $locked->fill($attributes)->save();
             if ($locked->state === 'active') {
-                $locked->occurrences()->where('sequence', '>=', $sequence)->whereNull('paid_at')
-                    ->where('is_override', false)->where('is_deleted', false)->delete();
+                $pending = $locked->occurrences()->where('sequence', '>=', $sequence)->whereNull('paid_at')
+                    ->where('is_override', false)->where('is_deleted', false);
+                if ($locked->value_effective_after !== null) {
+                    $pending->whereDate('due_date', '>', $locked->value_effective_after);
+                }
+                if ($multiPlan) {
+                    if (! $financialRevision) {
+                        // Never reprice historical rows from newer plan terms during a metadata edit.
+                        (clone $pending)->whereDate('due_date', '<=', today())
+                            ->update(Arr::only($attributes, ['description', 'category', 'priority']));
+                    }
+                    $pending->whereDate('due_date', '>', today());
+                }
+                $pending->delete();
             }
             $this->project($locked, $sequence);
 
@@ -175,7 +205,9 @@ class FinancialPlanService
             if ($plan->kind === 'recurring' && ($dueDate->greaterThan($horizon) || ($plan->end_date !== null && $dueDate->greaterThan($plan->end_date)))) {
                 break;
             }
-            if ($sequence < $fromSequence || $existing->has($sequence) || ($plan->projection_resume_date !== null && $dueDate->lessThan($plan->projection_resume_date))) {
+            if ($sequence < $fromSequence || $existing->has($sequence)
+                || ($plan->projection_resume_date !== null && $dueDate->lessThan($plan->projection_resume_date))
+                || ($plan->value_effective_after !== null && $dueDate->lessThanOrEqualTo($plan->value_effective_after))) {
                 continue;
             }
             $this->createOccurrence($plan, $sequence, $dueDate);
@@ -186,7 +218,7 @@ class FinancialPlanService
      * Freeze the entire prefix, not just rows present at edit time. A later generate() must never
      * apply new terms to earlier gaps, including dates skipped while the plan was paused.
      */
-    private function preserveBeforeAnchor(FinancialPlan $plan, int $anchor): void
+    private function preserveBeforeAnchor(FinancialPlan $plan, int $anchor, bool $freezeHistory = false): void
     {
         $existing = $plan->occurrences()->where('sequence', '<', $anchor)->pluck('sequence')->flip();
         for ($sequence = 1; $sequence < $anchor; $sequence++) {
@@ -194,7 +226,8 @@ class FinancialPlanService
                 continue;
             }
             $dueDate = $this->scheduleDate($plan->first_due_date, $plan->frequency, $sequence - 1);
-            $suppressed = ($plan->state === 'paused' && $dueDate->greaterThanOrEqualTo(CarbonImmutable::today()))
+            $suppressed = ($plan->state === 'paused' && ($freezeHistory || $dueDate->greaterThanOrEqualTo(CarbonImmutable::today())))
+                || ($plan->value_effective_after !== null && $dueDate->lessThanOrEqualTo($plan->value_effective_after))
                 || ($plan->projection_resume_date !== null && $dueDate->lessThan($plan->projection_resume_date))
                 || ($plan->kind === 'single' && $sequence > 1)
                 || ($plan->kind === 'installment' && $sequence > $plan->installment_count)
@@ -202,6 +235,43 @@ class FinancialPlanService
                     || $sequence > ($plan->occurrence_limit ?? self::MAX_RECURRING_OCCURRENCES)));
             $this->createOccurrence($plan, $sequence, $dueDate, $suppressed);
         }
+    }
+
+    /** @param array<string, mixed> $before
+     * @param  array<string, mixed>  $after
+     */
+    private function financialTermsChanged(array $before, array $after): bool
+    {
+        foreach (self::FINANCIAL_TERMS as $field) {
+            $oldValue = $before[$field] ?? null;
+            $newValue = $after[$field] ?? null;
+            if (in_array($field, ['amount', 'interest_rate'], true)) {
+                if (! BigDecimal::of($oldValue)->isEqualTo($newValue)) {
+                    return true;
+                }
+            } elseif ((string) $oldValue !== (string) $newValue) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function preserveValueHistory(FinancialPlan $plan): void
+    {
+        $count = match ($plan->kind) {
+            'single' => 1,
+            'installment' => $plan->installment_count,
+            'recurring' => $plan->occurrence_limit ?? self::MAX_RECURRING_OCCURRENCES,
+        };
+        for ($sequence = 1; $sequence <= $count; $sequence++) {
+            $dueDate = $this->scheduleDate($plan->first_due_date, $plan->frequency, $sequence - 1);
+            if ($dueDate->greaterThan(CarbonImmutable::today())
+                || ($plan->kind === 'recurring' && $plan->end_date !== null && $dueDate->greaterThan($plan->end_date))) {
+                break;
+            }
+        }
+        $this->preserveBeforeAnchor($plan, $sequence, true);
     }
 
     private function createOccurrence(FinancialPlan $plan, int $sequence, CarbonImmutable $dueDate, bool $deleted = false): void

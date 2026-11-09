@@ -300,7 +300,8 @@ class FinancialDomainTest extends TestCase
         $this->travelTo(CarbonImmutable::parse('2026-01-03'));
         $this->service()->transition($plan, 'resume');
 
-        $this->assertSame([1, 3, 4], $plan->occurrences()->orderBy('sequence')->pluck('sequence')->all());
+        $this->assertSame([1, 3, 4], $plan->occurrences()->where('is_deleted', false)->orderBy('sequence')->pluck('sequence')->all());
+        $this->assertDatabaseHas('occurrences', ['financial_plan_id' => $plan->id, 'sequence' => 2, 'is_deleted' => true, 'amount' => '100.00']);
         $this->assertSame('150.00', $plan->occurrences()->where('sequence', 3)->firstOrFail()->amount);
     }
 
@@ -384,7 +385,7 @@ class FinancialDomainTest extends TestCase
     #[DataProvider('nonInstallmentKinds')]
     public function test_normalizes_non_installment_terms_on_create_and_update(string $kind, string $mode): void
     {
-        $this->travelTo(CarbonImmutable::parse('2026-01-01'));
+        $this->travelTo(CarbonImmutable::parse('2025-12-31'));
         $terms = ['kind' => $kind, 'installment_count' => 5, 'amount_mode' => 'total',
             'interest_type' => 'compound', 'interest_rate' => '10.0000', 'interest_period' => 'daily',
             'end_date' => '2026-02-01', 'occurrence_limit' => 2];

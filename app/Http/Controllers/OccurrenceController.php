@@ -7,6 +7,7 @@ use App\Http\Resources\OccurrenceResource;
 use App\Models\FinancialPlan;
 use App\Models\Occurrence;
 use App\Services\FinancialQuery;
+use Brick\Math\BigDecimal;
 use Closure;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -55,6 +56,7 @@ class OccurrenceController extends Controller
         ]);
         $updated = $this->mutate($row, function (Occurrence $locked) use ($data): void {
             $this->requireUnpaid($locked);
+            $this->requireFutureFinancialEdit($locked, $data);
             $attributes = $data;
             if (array_key_exists('priority', $attributes)) {
                 $attributes['priority'] = $locked->direction === 'debit' ? ($attributes['priority'] ?? 'when_possible') : null;
@@ -141,6 +143,27 @@ class OccurrenceController extends Controller
         }
     }
 
+    /** @param array<string, mixed> $data */
+    private function requireFutureFinancialEdit(Occurrence $row, array $data): void
+    {
+        if (! in_array($row->kind, ['installment', 'recurring'], true)) {
+            return;
+        }
+        $historical = $row->due_date->lessThanOrEqualTo(today());
+        $errors = [];
+        if ($historical && isset($data['amount']) && ! BigDecimal::of($row->amount)->isEqualTo($data['amount'])) {
+            $errors['amount'] = 'O valor de uma parcela ou recorrência com vencimento hoje ou anterior é preservado. Altere somente ocorrências futuras.';
+        }
+        if (isset($data['due_date']) && $data['due_date'] !== $row->due_date->toDateString()
+            && ($historical || $data['due_date'] <= today()->toDateString())) {
+            $errors['due_date'] = 'O vencimento histórico é preservado. Uma ocorrência futura só pode ser remarcada para outra data futura.';
+        }
+        if ($errors !== []) {
+            throw ValidationException::withMessages($errors);
+        }
+    }
+
+    /** @param Closure(Occurrence): void $operation */
     private function mutate(Occurrence $row, Closure $operation): Occurrence
     {
         return DB::transaction(function () use ($row, $operation): Occurrence {

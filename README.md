@@ -221,15 +221,19 @@ As situações são derivadas das datas em todas as leituras, filtros e ordenaç
 
 ### Edições, exclusões e ciclo de vida
 
-- **Somente esta ocorrência:** ajusta descrição, categoria, valor, competência e vencimento de uma ocorrência não realizada. Fica marcada como exceção e sobrevive ao recálculo do plano.
-- **Esta e as próximas:** aplica novos termos a partir da sequência selecionada, inclusive. Datas continuam relativas às datas-base do plano, não à data da ocorrência selecionada; o formulário explicita isso. Sequências anteriores, baixas, exceções e exclusões são preservadas.
-- **Todo o plano:** recalcula somente ocorrências não realizadas e sem exceções. As baixas e seus valores permanecem intactos. Consequentemente, o total histórico pode diferir de um novo valor total informado.
+- **Somente esta ocorrência:** ajusta uma ocorrência não realizada e a marca como exceção. Em recorrências e parcelamentos, **valor e vencimento só podem mudar quando tanto o vencimento atual quanto o novo são posteriores a hoje**. Vencidas e as que vencem hoje mantêm esses campos; descrição, categoria, competência e prioridade continuam editáveis sem modificar o valor. Lançamentos únicos mantêm sua edição individual anterior.
+- **Esta e as próximas:** aplica novos termos a partir da sequência selecionada, inclusive. Para alterações financeiras de recorrências/parcelamentos, também exige vencimento **posterior a hoje**; selecionar uma ocorrência passada não libera seu valor histórico. Datas continuam relativas às datas-base do plano, não à ocorrência selecionada. Sequências anteriores, baixas, exceções e exclusões são preservadas.
+- **Todo o plano:** alterações de valor ou de condições financeiras de recorrências/parcelamentos atingem somente ocorrências futuras, não realizadas e sem exceções. **Vencidas, vencimentos de hoje, pagas e pagas em atraso mantêm seus valores anteriores**, mesmo com esta abrangência. Ajustes individuais futuros também são preservados. Alterações apenas de descrição/categoria/prioridade continuam seguindo a abrangência selecionada, respeitando históricos já congelados.
 - Ocorrências pagas não podem ser alteradas/excluídas sem reabertura explícita. A edição de um plano com baixas não pode mudar seu tipo.
 - A exclusão individual usa uma marca persistente (`is_deleted`), impedindo que a próxima geração recrie o registro.
 - **Pausar:** remove projeções não realizadas com vencimento hoje ou depois, inclusive ajustes individuais futuros; preserva baixas e vencidas. Não altera o calendário original.
 - **Retomar:** gera a partir da data da retomada, sem repor datas suprimidas durante a pausa. Essas datas ainda consomem posições do eventual limite de ocorrências original.
 - **Encerrar:** interrompe definitivamente a geração e remove futuras não realizadas; preserva baixas e vencidas. Não pode ser retomada ou editada.
 - **Excluir plano:** remove fisicamente se não houver baixas; se houver, arquiva como encerrado, mantém as baixas e remove os demais registros. A confirmação distingue esta ação da exclusão individual.
+
+O corte financeiro usa o dia corrente no fuso configurado da aplicação (`APP_TIMEZONE`), e “futuro” significa a partir de amanhã. Valor, modo total/por parcela, quantidade, juros, competência, frequência, datas-base e limites que alterem a projeção são tratados como revisão financeira. O plano guarda os novos termos e a data interna `value_effective_after`, evitando que o scheduler ou uma edição posterior criem retroativamente registros históricos com os novos valores. Lacunas históricas legítimas são materializadas com os termos anteriores antes da revisão; datas suprimidas por pausa/exclusão não são reativadas.
+
+Em parcelamentos com valor total, a nova base continua sendo dividida pela quantidade total de parcelas do plano, não pelo número de parcelas restantes. O sistema não redistribui nem desconta o histórico para forçar a soma ao novo total. Portanto, **histórico preservado + parcelas futuras pode diferir do novo valor total informado**. Exemplo: R$ 300 em três parcelas de R$ 100; após vencer a primeira, alterar a base para R$ 600 mantém a primeira em R$ 100 e projeta as duas futuras em R$ 200, somando R$ 500. Não é uma renegociação de saldo devedor.
 
 Geração, edição, baixa e exclusão são transacionais. O bloqueio da linha do plano serializa alterações concorrentes; a restrição única `(financial_plan_id, sequence)` é a última proteção contra duplicatas.
 
@@ -285,7 +289,7 @@ npm run build
 vendor/bin/pint --format agent
 ```
 
-Validação local: **216 testes PHP passaram (1.350 asserções)**, **18 testes do frontend passaram (formatação monetária e prioridades)**, checagem TypeScript e build de produção passaram. Os testes de frontend usam o runner nativo do Node, sem novas bibliotecas de testes.
+Validação local: **280 testes PHP passaram (1.793 asserções)**, **18 testes do frontend passaram (formatação monetária e prioridades)**, checagem TypeScript e build de produção passaram. Os testes de frontend usam o runner nativo do Node, sem novas bibliotecas de testes.
 
 Os testes PHP usam SQLite em memória, conforme `phpunit.xml`; nunca aponte testes destrutivos para o banco da aplicação. Cobrem cálculos, arredondamento, recorrências, calendário, preservação histórica, idempotência, API, filtros, totais, CSV, autenticação, CSRF, rate limiting e isolamento por usuário. Para validar especificamente MySQL/MariaDB, prepare **um banco exclusivo de testes**, configure o ambiente de testes e remova as substituições SQLite de `phpunit.xml` em uma configuração separada antes de executar a suíte.
 
