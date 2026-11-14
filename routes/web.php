@@ -6,7 +6,8 @@ use App\Http\Controllers\FinancialPlanController;
 use App\Http\Controllers\OccurrenceController;
 use Illuminate\Support\Facades\Route;
 
-Route::view('/', 'welcome')->name('home');
+Route::view('/', 'welcome', ['page' => 'presentation'])->name('home');
+Route::view('/app', 'welcome', ['page' => 'application'])->name('application');
 
 // Same-origin JSON API: keep session cookies and CSRF protection for the Vue application.
 Route::prefix('api/v1')->name('api.v1.')->group(function (): void {

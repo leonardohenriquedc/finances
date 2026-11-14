@@ -4,7 +4,8 @@ import { api, refreshCsrf, ApiError, errorMessage } from './api';
 import type { User, FieldErrors } from './types';
 import Errors from './Errors.vue';
 const emit = defineEmits<{ authenticated: [user: User] }>();
-const register = ref(false), busy = ref(false), error = ref(''), fields = ref<FieldErrors>({});
+const props = defineProps<{ initialRegister?: boolean }>();
+const register = ref(props.initialRegister ?? false), busy = ref(false), error = ref(''), fields = ref<FieldErrors>({});
 const form = reactive({ name: '', email: '', password: '', password_confirmation: '' });
 async function submit() {
     busy.value = true; error.value = ''; fields.value = {};

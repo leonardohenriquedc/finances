@@ -28,7 +28,7 @@
     "src": "_instrument-sans-600-normal-B9e8oLYv.woff"
   },
   "resources/css/app.css": {
-    "file": "assets/app-D2wKWqCT.css",
+    "file": "assets/app-CD0Z89Mk.css",
     "name": "app",
     "names": [
       "app.css"
@@ -36,10 +36,32 @@
     "src": "resources/css/app.css",
     "isEntry": true
   },
+  "resources/js/App.vue": {
+    "file": "assets/App-Bv7Oq_ag.js",
+    "name": "App",
+    "src": "resources/js/App.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.ts"
+    ]
+  },
+  "resources/js/Presentation.vue": {
+    "file": "assets/Presentation-w_A3U41t.js",
+    "name": "Presentation",
+    "src": "resources/js/Presentation.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.ts"
+    ]
+  },
   "resources/js/app.ts": {
-    "file": "assets/app-CJskLWNd.js",
+    "file": "assets/app-BNQdjiuF.js",
     "name": "app",
     "src": "resources/js/app.ts",
-    "isEntry": true
+    "isEntry": true,
+    "dynamicImports": [
+      "resources/js/Presentation.vue",
+      "resources/js/App.vue"
+    ]
   }
 }

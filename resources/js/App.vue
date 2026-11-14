@@ -12,6 +12,8 @@ import { api, refreshCsrf, ApiError, errorMessage, money, date, today, statusLab
 import type { User, Dashboard, FinancialPlan, Occurrence, OccurrencePage, Filters, FieldErrors } from './types';
 import { chartFilters, filterParams, readFilterParams, yearLabel } from './yearFilters';
 
+defineProps<{ initialRegister?: boolean }>();
+
 type View = 'dashboard' | 'transactions' | 'recurrences';
 const user = ref<User | null>(null), starting = ref(true), busy = ref(false), actionBusy = ref(false);
 const error = ref(''), errorFields = ref<FieldErrors>({}), notice = ref(''), categories = ref<string[]>([]);
@@ -132,7 +134,7 @@ const stateLabel = { active: 'Ativa', paused: 'Pausada', ended: 'Encerrada' };
 
 <template>
     <div v-if="starting" class="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50" role="status"><span class="brand-mark">◈</span><p class="text-sm text-slate-500">Preparando o DamascenoSRV Finances…</p></div>
-    <template v-else-if="!user"><div v-if="error" class="fixed inset-x-4 top-4 z-50 mx-auto max-w-lg"><Errors :message="error" /><button class="btn-secondary mt-2" @click="initialize">Tentar novamente</button></div><Auth @authenticated="authenticated" /></template>
+    <template v-else-if="!user"><div v-if="error" class="fixed inset-x-4 top-4 z-50 mx-auto max-w-lg"><Errors :message="error" /><button class="btn-secondary mt-2" @click="initialize">Tentar novamente</button></div><Auth :initial-register="initialRegister" @authenticated="authenticated" /></template>
     <div v-else class="min-h-screen bg-canvas text-slate-800">
         <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:bg-white focus:p-4">Pular para o conteúdo</a>
         <aside class="sidebar">

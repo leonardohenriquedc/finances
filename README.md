@@ -2,6 +2,16 @@
 
 Sistema de planejamento de contas a pagar e a receber. Permite projetar débitos e créditos únicos, parcelados ou recorrentes, acompanhar vencimentos e registrar baixas **manuais e informativas**. Não executa transferências, cobranças, pagamentos nem qualquer transação bancária.
 
+## Apresentação e acesso
+
+A rota **`/`** é a apresentação pública do DamascenoSRV Finances: objetivo do sistema, recursos, etapas de uso e avisos sobre seu caráter de planejamento, sem transações bancárias. O conteúdo é um componente Vue responsivo com a identidade azul do sistema, sem dados financeiros fictícios.
+
+- **`/app`** abre a aplicação financeira: visitantes veem o login e usuários autenticados acessam o planejamento.
+- **`/app?auth=register`** abre diretamente o cadastro para visitantes.
+- Os botões da apresentação usam URLs geradas pelas rotas nomeadas do Laravel.
+- A apresentação não consulta a API financeira nem carrega a interface de gestão; o componente da aplicação é carregado separadamente ao acessar `/app`.
+- Todas as consultas e alterações financeiras continuam protegidas por autenticação na API. O HTML público de `/app` é somente a estrutura de carregamento do Vue, sem dados da conta.
+
 ## Stack e requisitos
 
 - PHP 8.3+, Composer 2, Laravel 13.
@@ -20,7 +30,7 @@ Na raiz do projeto:
 docker compose up -d --build --wait --wait-timeout 180
 ```
 
-Acesse a aplicação pelo **localhost, porta 8080**. O Vite utiliza a porta 5173; abra a porta 8080 para usar o sistema. Na primeira execução, downloads, compilação das extensões PHP, Composer e npm podem demorar alguns minutos. A montagem local precisa conter todos os arquivos do projeto, incluindo `.env.example`.
+Acesse a apresentação pelo **localhost, porta 8080**, e clique em **Entrar** ou **Criar conta**. O sistema fica no caminho `/app`. O Vite utiliza a porta 5173; abra a porta 8080 para usar o site. Na primeira execução, downloads, compilação das extensões PHP, Composer e npm podem demorar alguns minutos. A montagem local precisa conter todos os arquivos do projeto, incluindo `.env.example`.
 
 O Compose disponibiliza:
 
@@ -291,7 +301,7 @@ npm run build
 vendor/bin/pint --format agent
 ```
 
-Validação local: **298 testes PHP passaram (1.970 asserções)**, **29 testes do frontend passaram (formatação monetária, prioridades e filtros anuais)**, checagem TypeScript e build de produção passaram. Os testes de frontend usam o runner nativo do Node, sem novas bibliotecas de testes.
+Validação local: **303 testes PHP passaram (2.000 asserções)**, **34 testes do frontend passaram (apresentação, login/cadastro, formatação monetária, prioridades e filtros anuais)**, checagem TypeScript e build de produção passaram. Os testes de frontend usam o runner nativo do Node, sem novas bibliotecas de testes.
 
 Os testes PHP usam SQLite em memória, conforme `phpunit.xml`; nunca aponte testes destrutivos para o banco da aplicação. Cobrem cálculos, arredondamento, recorrências, calendário, preservação histórica, idempotência, API, filtros, totais, CSV, autenticação, CSRF, rate limiting e isolamento por usuário. Para validar especificamente MySQL/MariaDB, prepare **um banco exclusivo de testes**, configure o ambiente de testes e remova as substituições SQLite de `phpunit.xml` em uma configuração separada antes de executar a suíte.
 
