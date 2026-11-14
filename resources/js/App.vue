@@ -10,29 +10,28 @@ import Errors from './Errors.vue';
 import PriorityBadge from './PriorityBadge.vue';
 import { api, refreshCsrf, ApiError, errorMessage, money, date, today, statusLabel } from './api';
 import type { User, Dashboard, FinancialPlan, Occurrence, OccurrencePage, Filters, FieldErrors } from './types';
+import { chartFilters, filterParams, readFilterParams, yearLabel } from './yearFilters';
 
 type View = 'dashboard' | 'transactions' | 'recurrences';
 const user = ref<User | null>(null), starting = ref(true), busy = ref(false), actionBusy = ref(false);
 const error = ref(''), errorFields = ref<FieldErrors>({}), notice = ref(''), categories = ref<string[]>([]);
 const dashboard = ref<Dashboard | null>(null), result = ref<OccurrencePage | null>(null), plans = ref<FinancialPlan[]>([]);
 const view = ref<View>('dashboard');
-const defaults = (): Filters => ({ month: '', year: String(new Date().getFullYear()), from: '', to: '', category: '', status: '', text: '', direction: '', kind: '', priority: '', sort: 'due_date', order: 'asc', page: '1', per_page: '25' });
+const defaults = (): Filters => ({ month: '', year: String(new Date().getFullYear()), year_from: '', year_to: '', from: '', to: '', category: '', status: '', text: '', direction: '', kind: '', priority: '', sort: 'due_date', order: 'asc', page: '1', per_page: '25' });
 function readLocation(): Filters {
-    const params = new URLSearchParams(location.search), initial = defaults();
-    for (const key of Object.keys(initial) as (keyof Filters)[]) { if (params.has(key)) initial[key] = params.get(key) ?? ''; }
+    const params = new URLSearchParams(location.search);
+    const initial = readFilterParams(params, defaults());
     const tab = params.get('view');
     view.value = tab === 'transactions' || tab === 'recurrences' ? tab : 'dashboard';
     return initial;
 }
 const filters = ref<Filters>(readLocation());
 function query(includePagination = true): string {
-    const params = new URLSearchParams();
-    for (const [key, value] of Object.entries(filters.value)) { if (value && (includePagination || !['page', 'per_page'].includes(key))) params.set(key, value); }
-    return params.toString();
+    return filterParams(filters.value, includePagination ? 'api' : 'export').toString();
 }
-function syncLocation(): void { const params = new URLSearchParams(filters.value); for (const [key, value] of [...params]) if (!value && key !== 'year') params.delete(key); params.set('view', view.value); history.pushState(null, '', `${location.pathname}?${params}`); }
+function syncLocation(): void { const params = filterParams(filters.value, 'location'); params.set('view', view.value); history.pushState(null, '', `${location.pathname}?${params}`); }
 const exportUrl = computed(() => `/api/v1/occurrences/export?${query(false)}`);
-const scopeLabel = computed(() => `${filters.value.month ? `${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][Number(filters.value.month) - 1]} · ` : 'Todos os meses · '}${filters.value.year || 'Todos os anos'}${filters.value.from || filters.value.to ? ' · intervalo personalizado' : ''}`);
+const scopeLabel = computed(() => `${filters.value.month ? `${['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'][Number(filters.value.month) - 1]} · ` : 'Todos os meses · '}${yearLabel(filters.value)}${filters.value.from || filters.value.to ? ' · intervalo personalizado' : ''}`);
 let requestId = 0;
 async function load(): Promise<void> {
     if (!user.value) return;
@@ -67,7 +66,7 @@ onMounted(() => { window.addEventListener('session-expired', sessionExpired); wi
 onBeforeUnmount(() => { window.removeEventListener('session-expired', sessionExpired); window.removeEventListener('popstate', popState); });
 function apply(next: Filters): void { filters.value = { ...next }; syncLocation(); void load(); }
 function navigate(next: View): void { if (view.value === next) return; view.value = next; syncLocation(); void load(); }
-function chartFilter(next: Record<string, string>): void { view.value = 'transactions'; apply({ ...filters.value, ...next, page: '1' }); }
+function chartFilter(next: Record<string, string>): void { view.value = 'transactions'; apply(chartFilters(filters.value, next)); }
 function sort(column: string): void { apply({ ...filters.value, sort: column, order: filters.value.sort === column && filters.value.order === 'asc' ? 'desc' : 'asc', page: '1' }); }
 const modal = ref<'plan' | 'payment' | 'confirm' | null>(null), selectedPlan = ref<FinancialPlan>(), selectedOccurrence = ref<Occurrence>();
 const modalBusy = ref(false), modalError = ref(''), modalFields = ref<FieldErrors>({});

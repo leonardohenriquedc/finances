@@ -248,7 +248,7 @@ Geração, edição, baixa e exclusão são transacionais. O bloqueio da linha d
 
 Todos os indicadores e gráficos respeitam o mesmo recorte da tabela. O agrupamento é pelo **vencimento**, não pela competência nem pela data da baixa. O acumulado começa em zero no recorte e não representa um saldo bancário ou saldo anterior. Somente meses com registros aparecem nas séries.
 
-Filtros combináveis de mês, ano, intervalo inclusivo, categoria, situação, texto, direção, tipo e prioridade. Mês/ano e intervalo se **intersectam**. `pending` e `realized` são filtros agrupados adicionais usados nos gráficos: aberto+vencido e pago+pago em atraso, respectivamente. Ordenação e paginação são feitas no servidor; os totais abrangem todos os resultados filtrados, não apenas a página. Filtros persistem na URL, inclusive ao voltar/avançar no navegador.
+Filtros combináveis de mês, período anual, intervalo de datas inclusivo, categoria, situação, texto, direção, tipo e prioridade. No campo **Período anual**, selecione **Todos os anos**, **Ano específico** (por exemplo, 2026) ou **Intervalo de anos** (por exemplo, 2026 a 2027). O intervalo anual inclui 1º de janeiro do ano inicial até 31 de dezembro do ano final; ambos os anos são obrigatórios e o final não pode ser menor que o inicial. É permitido usar o mesmo ano nos dois campos. Mês, período anual e intervalo de datas se **intersectam**: fevereiro de 2026 a 2027 mostra os meses de fevereiro dos dois anos. `pending` e `realized` são filtros agrupados adicionais usados nos gráficos: aberto+vencido e pago+pago em atraso, respectivamente. Ordenação e paginação são feitas no servidor; os totais abrangem todos os resultados filtrados, não apenas a página. Filtros persistem na URL, inclusive ao voltar/avançar no navegador.
 
 CSV exporta **todos** os resultados filtrados e ordenados, ignorando a página, em UTF-8 com BOM, vírgula como separador e decimais com ponto. Prefixos de fórmula em textos são neutralizados para reduzir o risco de CSV injection.
 
@@ -275,7 +275,9 @@ Base: `/api/v1`. A API é **same-origin**, autenticada pelo guard de sessão `we
 | GET | `/categories` | Categorias do usuário |
 | GET | `/dashboard` | Indicadores, séries e próximos vencimentos |
 
-`PUT /plans/{id}` aceita edição parcial e os campos `scope: all|future`, com `occurrence_id` obrigatório para `future`. A edição individual utiliza `PATCH /occurrences/{id}`. Filtros de listagem: `month`, `year`, `from`, `to`, `category`, `status`, `text`, `direction`, `kind`, `priority`, `sort`, `order`, `page`, `per_page` (1–100). Ordenações permitidas: `due_date`, `amount`, `description`, `category`, `status`, `priority`; ordem `asc|desc`.
+`PUT /plans/{id}` aceita edição parcial e os campos `scope: all|future`, com `occurrence_id` obrigatório para `future`. A edição individual utiliza `PATCH /occurrences/{id}`. Filtros de listagem: `month`, `year`, `year_from`, `year_to`, `from`, `to`, `category`, `status`, `text`, `direction`, `kind`, `priority`, `sort`, `order`, `page`, `per_page` (1–100). Ordenações permitidas: `due_date`, `amount`, `description`, `category`, `status`, `priority`; ordem `asc|desc`.
+
+Para um ano específico, use `year=2026`. Para um intervalo anual, use `year_from=2026&year_to=2027`, sem `year`. As duas formas não podem ser combinadas na mesma requisição. Sem esses três valores, o período anual não é limitado. Links anteriores com `year` continuam válidos; ao abrir um mês nos gráficos, o intervalo é substituído pelo ano daquele mês. O período escolhido é preservado na URL, na paginação e no CSV.
 
 Consultas, gráficos, categorias, exportações e mutações são isolados por usuário. Identificadores de outro usuário retornam 404. Login/cadastro têm limitação por conta+IP e por IP. Erros de validação retornam 422; ausência de autenticação, 401. Não há chaves de serviços externos ou integração financeira.
 
@@ -289,7 +291,7 @@ npm run build
 vendor/bin/pint --format agent
 ```
 
-Validação local: **280 testes PHP passaram (1.793 asserções)**, **18 testes do frontend passaram (formatação monetária e prioridades)**, checagem TypeScript e build de produção passaram. Os testes de frontend usam o runner nativo do Node, sem novas bibliotecas de testes.
+Validação local: **298 testes PHP passaram (1.970 asserções)**, **29 testes do frontend passaram (formatação monetária, prioridades e filtros anuais)**, checagem TypeScript e build de produção passaram. Os testes de frontend usam o runner nativo do Node, sem novas bibliotecas de testes.
 
 Os testes PHP usam SQLite em memória, conforme `phpunit.xml`; nunca aponte testes destrutivos para o banco da aplicação. Cobrem cálculos, arredondamento, recorrências, calendário, preservação histórica, idempotência, API, filtros, totais, CSV, autenticação, CSRF, rate limiting e isolamento por usuário. Para validar especificamente MySQL/MariaDB, prepare **um banco exclusivo de testes**, configure o ambiente de testes e remova as substituições SQLite de `phpunit.xml` em uma configuração separada antes de executar a suíte.
 

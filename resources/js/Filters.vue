@@ -1,19 +1,31 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue';
+import { reactive, ref, watch } from 'vue';
 import type { Filters } from './types';
 import { priorityLabels } from './priority';
+import { normalizeYearFilters, yearMode } from './yearFilters';
+import type { YearMode } from './yearFilters';
 const props = defineProps<{ filters: Filters; categories: string[]; busy: boolean }>();
 const emit = defineEmits<{ apply: [filters: Filters]; reset: [] }>();
 const draft = reactive({ ...props.filters });
-watch(() => props.filters, value => Object.assign(draft, value), { deep: true });
+const annualPeriod = ref<YearMode>(yearMode(props.filters));
+watch(() => props.filters, value => {
+    Object.assign(draft, value);
+    annualPeriod.value = yearMode(value);
+}, { deep: true });
+watch(annualPeriod, mode => Object.assign(draft, normalizeYearFilters(draft, mode)));
 const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 </script>
 <template>
-    <form class="panel space-y-4" aria-label="Filtros combinados dos lançamentos e indicadores" @submit.prevent="emit('apply', { ...draft, page: '1' })">
+    <form class="panel space-y-4" aria-label="Filtros combinados dos lançamentos e indicadores" @submit.prevent="emit('apply', { ...normalizeYearFilters(draft, annualPeriod), page: '1' })">
         <div class="flex flex-wrap items-center justify-between gap-3"><h2 class="text-sm font-semibold">Personalize sua visão</h2><span class="text-xs text-slate-500">Todos os filtros se combinam pelo vencimento</span></div>
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
             <label class="field">Buscar descrição<input v-model="draft.text" type="search" placeholder="O que você procura?" /></label>
-            <label class="field">Ano<input v-model="draft.year" type="number" min="1900" max="9999" placeholder="Todos os anos" /></label>
+            <label class="field">Período anual<select v-model="annualPeriod"><option value="all">Todos os anos</option><option value="single">Ano específico</option><option value="range">Intervalo de anos</option></select></label>
+            <label v-if="annualPeriod === 'single'" class="field">Ano<input v-model="draft.year" type="number" min="1900" max="9999" step="1" required /></label>
+            <template v-if="annualPeriod === 'range'">
+                <label class="field">Ano inicial<input v-model="draft.year_from" type="number" min="1900" :max="draft.year_to || 9999" step="1" required aria-describedby="year-range-help" /></label>
+                <label class="field">Ano final<input v-model="draft.year_to" type="number" :min="draft.year_from || 1900" max="9999" step="1" required aria-describedby="year-range-help" /></label>
+            </template>
             <label class="field">Mês<select v-model="draft.month"><option value="">Todos os meses</option><option v-for="(month, index) in months" :key="month" :value="String(index + 1)">{{ month }}</option></select></label>
             <label class="field">Categoria<input v-model="draft.category" list="filter-categories" placeholder="Todas as categorias" /><datalist id="filter-categories"><option v-for="category in categories" :key="category" :value="category" /></datalist></label>
             <label class="field">
@@ -33,6 +45,7 @@ const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Jul
                             </select>
                         </label>
         </div>
+        <p v-if="annualPeriod === 'range'" id="year-range-help" class="text-xs text-slate-500">O intervalo inclui ambos os anos: de 1º de janeiro do ano inicial a 31 de dezembro do ano final. Os demais filtros continuam se combinando com esse período.</p>
         <details><summary class="w-fit cursor-pointer text-xs font-medium text-brand-800">Mais filtros e ordenação</summary><div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label class="field">Vencimento de<input v-model="draft.from" type="date" /></label><label class="field">Vencimento até<input v-model="draft.to" type="date" :min="draft.from || undefined" /></label>
             <label class="field">Direção<select v-model="draft.direction"><option value="">Entradas e saídas</option><option value="credit">Somente entradas</option><option value="debit">Somente saídas</option></select></label>

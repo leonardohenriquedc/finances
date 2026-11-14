@@ -18,7 +18,9 @@ class OccurrenceFilterRequest extends FormRequest
     {
         return [
             'month' => ['nullable', 'integer', 'between:1,12'],
-            'year' => ['nullable', 'integer', 'between:1900,9999'],
+            'year' => ['nullable', 'integer', 'between:1900,9999', 'prohibits:year_from,year_to'],
+            'year_from' => ['nullable', 'required_with:year_to', 'integer', 'between:1900,9999'],
+            'year_to' => ['nullable', 'required_with:year_from', 'integer', 'between:1900,9999', 'gte:year_from'],
             'from' => ['nullable', 'date_format:Y-m-d'],
             'to' => ['nullable', 'date_format:Y-m-d', ...($this->filled('from') ? ['after_or_equal:from'] : [])],
             'category' => ['nullable', 'string', 'max:255'],

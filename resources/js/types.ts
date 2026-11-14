@@ -49,5 +49,5 @@ export interface Dashboard {
     upcoming: Occurrence[];
     projection_end: string;
 }
-export type Filters = Record<'month' | 'year' | 'from' | 'to' | 'category' | 'status' | 'text' | 'direction' | 'kind' | 'priority' | 'sort' | 'order' | 'page' | 'per_page', string>;
+export type Filters = Record<'month' | 'year' | 'year_from' | 'year_to' | 'from' | 'to' | 'category' | 'status' | 'text' | 'direction' | 'kind' | 'priority' | 'sort' | 'order' | 'page' | 'per_page', string>;
 export type FieldErrors = Record<string, string[]>;

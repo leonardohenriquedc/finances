@@ -26,6 +26,10 @@ class FinancialQuery
         if (! empty($filters['year'])) {
             $query->whereYear('due_date', $filters['year']);
         }
+        if (! empty($filters['year_from']) && ! empty($filters['year_to'])) {
+            $query->whereDate('due_date', '>=', $filters['year_from'].'-01-01')
+                ->whereDate('due_date', '<=', $filters['year_to'].'-12-31');
+        }
         if (! empty($filters['from'])) {
             $query->whereDate('due_date', '>=', $filters['from']);
         }

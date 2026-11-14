@@ -3,6 +3,9 @@
 return [
     'required' => 'O campo :attribute é obrigatório.',
     'required_if' => 'O campo :attribute é obrigatório para a opção selecionada.',
+    'required_with' => 'O campo :attribute é obrigatório quando :values é informado.',
+    'prohibits' => 'Use um ano específico ou um intervalo de anos, não ambos.',
+    'gte' => ['numeric' => 'O campo :attribute deve ser maior ou igual a :value.'],
     'string' => 'O campo :attribute deve ser um texto.',
     'email' => 'Informe um e-mail válido.',
     'unique' => 'O valor informado para :attribute já está cadastrado.',
@@ -25,7 +28,7 @@ return [
         'competence_date' => 'competência', 'first_due_date' => 'primeiro vencimento', 'due_date' => 'vencimento',
         'end_date' => 'data final', 'occurrence_limit' => 'limite de ocorrências', 'scope' => 'abrangência',
         'occurrence_id' => 'ocorrência de referência', 'paid_at' => 'data da baixa', 'paid_amount' => 'valor realizado',
-        'month' => 'mês', 'year' => 'ano', 'from' => 'data inicial', 'to' => 'data final', 'status' => 'situação',
+        'month' => 'mês', 'year' => 'ano', 'year_from' => 'ano inicial', 'year_to' => 'ano final', 'from' => 'data inicial', 'to' => 'data final', 'status' => 'situação',
         'text' => 'texto', 'sort' => 'ordenação', 'order' => 'direção da ordenação', 'page' => 'página',
         'per_page' => 'resultados por página', 'action' => 'ação', 'priority' => 'prioridade',
     ],
