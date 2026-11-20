@@ -151,7 +151,15 @@ async function save(): Promise<void> {
         </p>
         <fieldset :disabled="busy || plan?.state === 'ended'" class="grid gap-4 sm:grid-cols-2">
             <label class="field sm:col-span-2">Descrição<input v-model="form.description" required maxlength="255" autofocus :aria-invalid="!!fields.description" /></label>
-            <label class="field">Categoria<input v-model="form.category" list="plan-categories" required maxlength="255" :aria-invalid="!!fields.category" /><datalist id="plan-categories"><option v-for="category in categories" :key="category" :value="category" /></datalist></label>
+            <div class="field">
+                <label for="plan-category">Categoria</label>
+                <select v-if="categories.length" :value="categories.includes(form.category) ? form.category : ''" aria-label="Categorias já cadastradas" @change="form.category = ($event.target as HTMLSelectElement).value">
+                    <option value="" disabled>Selecione uma categoria existente</option>
+                    <option v-for="category in categories" :key="category" :value="category">{{ category }}</option>
+                </select>
+                <input id="plan-category" v-model="form.category" required maxlength="255" placeholder="Ou digite uma nova categoria" aria-describedby="plan-category-help" :aria-invalid="!!fields.category" />
+                <span id="plan-category-help" class="text-xs font-normal text-slate-500">{{ categories.length ? 'Selecione uma categoria cadastrada ou digite uma nova.' : 'Digite o nome da sua primeira categoria.' }}</span>
+            </div>
             <label v-if="scope !== 'one' || !plan" class="field">Direção<select v-model="form.direction"><option value="debit">Saída · débito</option><option value="credit">Entrada · crédito</option></select></label>
             <label v-if="effectiveDirection === 'debit'" class="field">Prioridade de pagamento
                 <select v-model="form.priority" required :aria-invalid="!!fields.priority" aria-describedby="priority-help"><option v-for="(label, value) in priorityLabels" :key="value" :value="value">{{ label }}</option></select>

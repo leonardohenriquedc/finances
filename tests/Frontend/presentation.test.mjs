@@ -8,6 +8,7 @@ import { renderToString } from 'vue/server-renderer';
 let server;
 let html;
 let Auth;
+let PlanForm;
 before(async () => {
     server = await createServer({
         configFile: false,
@@ -18,6 +19,7 @@ before(async () => {
     });
     const { default: Presentation } = await server.ssrLoadModule('/resources/js/Presentation.vue');
     ({ default: Auth } = await server.ssrLoadModule('/resources/js/Auth.vue'));
+    ({ default: PlanForm } = await server.ssrLoadModule('/resources/js/PlanForm.vue'));
     html = await renderToString(createSSRApp(Presentation, {
         appUrl: '/sistema-financeiro',
         registerUrl: '/sistema-financeiro?auth=register',
@@ -56,6 +58,22 @@ test('account creation opens registration directly instead of login', async () =
     assert.match(registration, /Comece seu planejamento/);
     assert.match(registration, /Confirme sua senha/);
     assert.match(registration, /autocomplete="new-password"/);
+});
+
+test('new planning lists existing categories and allows entering a new category', async () => {
+    const form = await renderToString(createSSRApp(PlanForm, { categories: ['Casa', 'Alimentação'] }));
+    assert.match(form, /<select[^>]*aria-label="Categorias já cadastradas"/);
+    assert.match(form, /<option value="Casa">Casa<\/option>/);
+    assert.match(form, /<option value="Alimentação">Alimentação<\/option>/);
+    assert.match(form, /<input[^>]*id="plan-category"[^>]*required/);
+    assert.match(form, /Selecione uma categoria cadastrada ou digite uma nova/);
+});
+
+test('new planning without categories keeps the category input and explains the empty state', async () => {
+    const form = await renderToString(createSSRApp(PlanForm, { categories: [] }));
+    assert.doesNotMatch(form, /aria-label="Categorias já cadastradas"/);
+    assert.match(form, /<input[^>]*id="plan-category"[^>]*required/);
+    assert.match(form, /Digite o nome da sua primeira categoria/);
 });
 
 test('presentation explains manual planning and does not present fictitious financial balances', () => {
